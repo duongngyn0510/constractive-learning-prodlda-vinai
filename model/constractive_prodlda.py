@@ -13,18 +13,21 @@ class ConstractiveProdLDA(nn.Module):
         self.encode = Encoder(config)
         self.decode = Decoder(config)
         self.drop_lda = nn.Dropout(config.drop_lda)
-        
+
         # prior mean
         topic_mean_prior = 0.
         mean_prior = torch.Tensor(1, config.num_topics).fill_(topic_mean_prior)
-        
+        mean_prior = mean_prior.to(config.device)
+
         # prior variance
         topic_var_prior = 1 - (1. / config.num_topics)
         var_prior = torch.Tensor(1, config.num_topics).fill_(topic_var_prior)
-        
+        var_prior = var_prior.to(config.device)
+
         # prior log variance
         log_var_prior = var_prior.log()
-        
+        log_var_prior = log_var_prior.to(config.device)
+
         # training prior ?
         if not config.learn_prior:
             self.register_buffer('mean_prior', mean_prior)
@@ -65,9 +68,9 @@ class ConstractiveProdLDA(nn.Module):
         x_neg = x_neg.reshape(b, -1)
         x_pos = x_pos.reshape(b, -1)
 
-        return x_neg.clone().detach(), x_pos.clone().detach()  
+        return x_neg.clone().detach(), x_pos.clone().detach()   
     
-    def forward(self, x, tfidf, ids):
+    def forward(self, x, tfidf=None, ids=None):
         """
         Args:
             x: bag-of-word input, shape (batch_size, vocab_size)
@@ -98,13 +101,11 @@ class ConstractiveProdLDA(nn.Module):
 
             # latent vector representation for negative samples
             z_neg, _, _ = self.encode(x_neg)
-        
+
             # latent vector representation for positive samples
             z_pos, _, _ = self.encode(x_pos)
         else:
             z_neg = None
             z_pos = None
-        
         return self.mean_prior, self.var_prior, self.log_var_prior, \
                 mean_pos, var_pos, log_var_pos, x_recon, z, z_neg, z_pos
-
