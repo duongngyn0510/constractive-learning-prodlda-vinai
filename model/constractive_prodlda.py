@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from encoder import Encoder
-from decoder import Decoder
+from model.encoder import Encoder
+from model.decoder import Decoder
+
 
 
 class ConstractiveProdLDA(nn.Module):
@@ -35,7 +36,7 @@ class ConstractiveProdLDA(nn.Module):
             self.register_parameter('log_var_prior', nn.Parameter(log_var_prior))
     
     @staticmethod
-    def sampling(x, x_recon, tfidf, k):  # Data sampling in Contrastive Learning for ProdLDA - VinAI
+    def sampling(x, x_recon, tfidf, k, ids):  # Data sampling in Contrastive Learning for ProdLDA - VinAI
         """
         Args:
             x: array_like, shape (batch_size, vocab_size)
@@ -46,23 +47,32 @@ class ConstractiveProdLDA(nn.Module):
             x_negative: Negative samples, shape (batch_size, vocab_size)
             x_positive: Positive samples, shape (batch_size, vocab_size)
         """
-        x_recon = x_recon.clone()
-        x_pos = x.clone()
-        x_neg = x.clone()
+        b, n = x.shape
+        x_recon = x_recon.clone().reshape(-1)
+        x_pos = x.clone().reshape(-1)
+        x_neg = x.clone().reshape(-1)
 
-        _, top_max_ids = torch.topk(tfidf, dim=1, k=k)                 # get top-k highest tfidf score
-        x_neg[:, top_max_ids] = x_recon[:, top_max_ids]
+        ids_sort = torch.argsort(tfidf, dim=1, descending=True)
+        ids_sort += ids
 
-        _, top_min_ids = torch.topk(tfidf, dim=1, k=k, largest=False)  # get top-k lowest tfidf score
-        x_pos[:, top_min_ids] = x_recon[:, top_min_ids]
+        # get top-k highest, lowest tfidf score
+        top_max_ids = ids_sort[:, :k].reshape(-1)
+        top_min_ids = ids_sort[:, -k:].reshape(-1)
 
-        return x_neg.clone().detach(), x_pos.clone().detach()   
+        x_neg[top_max_ids] = x_recon[top_max_ids]
+        x_pos[top_min_ids] = x_recon[top_min_ids]
+
+        x_neg = x_neg.reshape(b, -1)
+        x_pos = x_pos.reshape(b, -1)
+
+        return x_neg.clone().detach(), x_pos.clone().detach()  
     
-    def forward(self, x, tfidf):
+    def forward(self, x, tfidf, ids):
         """
         Args:
             x: bag-of-word input, shape (batch_size, vocab_size)
             tfidf: tfidf scores, shape (batch_size, vocab_size)
+            ids: shape (batch_size, 1)
         Returns:
             mean_prior: shape (1, num_topics)
             var_prior: shape (1, num_topics)
@@ -84,7 +94,7 @@ class ConstractiveProdLDA(nn.Module):
         x_recon = self.decode(z)                                            
         
         if self.training:
-            x_neg, x_pos = self.sampling(x, x_recon, tfidf, self.config.k)
+            x_neg, x_pos = self.sampling(x, x_recon, tfidf, self.config.k, ids)
 
             # latent vector representation for negative samples
             z_neg, _, _ = self.encode(x_neg)
@@ -97,42 +107,4 @@ class ConstractiveProdLDA(nn.Module):
         
         return self.mean_prior, self.var_prior, self.log_var_prior, \
                 mean_pos, var_pos, log_var_pos, x_recon, z, z_neg, z_pos
-    
 
-def compute_beta(z, z_pos, z_neg):
-    """
-    Args:
-        z: News representation, shape (batch_size, num_topics)
-        z_neg: Negative representation, shape (batch_size, num_topics)
-        z_pos: Positive representation, shape (batch_size, num_topics)
-    Returns:
-        beta: Tensor.float
-    """
-    positive_product = torch.einsum('b n, b n -> b', z, z_pos)    # z . z+
-    negative_product = torch.einsum('b n, b n -> b', z, z_neg)    # z . z-
-    gamma = positive_product / negative_product
-    beta = gamma.mean()
-    return beta
-
-
-def loss(config, x, mean_prior, var_prior, log_var_prior, 
-         mean_pos, var_pos, log_var_pos, x_recon, 
-         z, z_neg, z_pos, beta):
-    # NL
-    NL = -(x * (x_recon + 1e-10).log()).sum(dim=1)
-    
-    # KLD
-    var_division = var_pos / var_prior
-    diff = mean_pos - mean_prior
-    diff_term = diff * diff / var_prior
-    logvar_division = log_var_prior - log_var_pos
-    KLD = 0.5 * ((var_division + diff_term + logvar_division).sum(1) - config.num_topics)
-    
-    # Constractive
-    if config.train_cl:
-        positive_product = torch.einsum('b n, b n -> b', z, z_pos)    # z . z+
-        negative_product = torch.einsum('b n, b n -> b', z, z_neg)    # z . z-
-        CL = - (positive_product / (positive_product + beta * negative_product)).log()
-        return NL + KLD + CL
-    else:
-        return NL + KLD 

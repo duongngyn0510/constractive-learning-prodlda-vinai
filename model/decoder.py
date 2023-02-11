@@ -10,6 +10,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.fc = nn.Linear(config.num_topics, config.vocab_size)
         self.fc.apply(self.xavier_weight_init)
+        self.bn = nn.BatchNorm1d(config.vocab_size, affine=False)
 
     def xavier_weight_init(self, m):
         if isinstance(m, nn.Linear):
@@ -23,5 +24,6 @@ class Decoder(nn.Module):
         Returns:
             x_recon: Reconstructed documents, shape (batch_size, vocab_size)
         """
-        x_recon = F.softmax(self.fc(z), dim=1)
+        x_recon = F.softmax(self.bn(self.fc(z)), dim=1)
         return x_recon
+    

@@ -45,5 +45,5 @@ class Encoder(nn.Module):
             dim=1
         ) 
         z = self.drop_lda(z)
-
+        
         return z, mean_posterior, log_var_posterior
