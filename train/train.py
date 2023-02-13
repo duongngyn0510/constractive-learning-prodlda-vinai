@@ -70,6 +70,7 @@ def train(model, train_dataloader, config, optimizer):
         None
     """
     T = len(train_dataloader)
+    training_loss = 0
     model.train()
     ids = (torch.arange(config.batch_size) * config.vocab_size).unsqueeze(-1)
     ids = ids.to(config.device)
@@ -90,9 +91,10 @@ def train(model, train_dataloader, config, optimizer):
         cs_loss = loss(config, x, mean_prior, var_prior, log_var_prior,
                         mean_pos, var_pos, log_var_pos, x_recon,
                         z, z_neg, z_pos, beta)
+        training_loss += cs_loss
         cs_loss.backward()
         optimizer.step()
-        if i % 100 == 0:
-            print(f"loss: {cs_loss:>7f}  [{i:>5d}/{T:>5d}]")
+    training_loss = training_loss / T
+    print(f"loss: {training_loss:>7f}")
 
 
