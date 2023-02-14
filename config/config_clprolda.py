@@ -10,9 +10,9 @@ class Config():
     drop_lda = 0.2
     vocab_size = bow.shape[1]
     k = 50
-    learn_prior = False # nếu train thì loss hay ra nan  
+    learn_prior = False   
     device = 'cuda' if torch.cuda.is_available() else 'cpu' 
     lr = 1e-4
-    train_cl = True # dùng constractive hay không dùng thì kết quả vẫn chán na ná nhau (khả năng prodlda hoạt động kém)
+    train_cl = True 
     batch_size = 16
     epochs = 10
