@@ -9,7 +9,6 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 
-
 config = Config()
 
 # get data
@@ -33,8 +32,8 @@ optimizer = Adam(cs_model.parameters(), lr=config.lr)
 
 # get dataloader
 dataset = ConstractiveProLDADataset(bow, tfidf)
-train_dataloader = DataLoader(dataset, batch_size=16, shuffle=True, drop_last=True)
-infer_dataloader = DataLoader(dataset, batch_size=16, shuffle=False, drop_last=False)
+train_dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True, drop_last=True)
+infer_dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, drop_last=False)
 
 if __name__ == '__main__':
     for t in range(config.epochs):
