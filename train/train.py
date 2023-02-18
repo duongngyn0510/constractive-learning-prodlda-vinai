@@ -1,4 +1,5 @@
 import torch
+from tqdm import tqdm
 
 
 def compute_beta(z, z_pos, z_neg):
@@ -96,5 +97,6 @@ def train(model, train_dataloader, config, optimizer):
         optimizer.step()
     training_loss = training_loss / T
     print(f"loss: {training_loss:>7f}")
+    return training_loss
 
 

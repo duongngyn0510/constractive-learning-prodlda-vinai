@@ -48,3 +48,6 @@ tfidf_vectorizer = TfidfVectorizer()
 tfidf = tfidf_vectorizer.fit_transform(df['text'])
 with open ('tfidf.pkl', 'wb') as f:
     pickle.dump(tfidf, f)
+
+with open ('label.pkl', 'wb') as f:
+    pickle.dump(label, f)
