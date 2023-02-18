@@ -61,6 +61,7 @@ def inference():
 
     if not os.path.exists('./checkpoint'):
         os.mkdir('./checkpoint')
+
     model = CLProdLDA(config)
     best_training_loss = float('inf')
 
@@ -68,12 +69,6 @@ def inference():
         print(f"Epoch {t+1}")
         training_loss = model.fit(train_dataloader)
         print('-------------------------')
-        if training_loss < best_training_loss:
-            best_training_loss = training_loss
-            torch.save({
-                'model_state_dict': model.cs_model,
-                'optimizer_state_dict': model.optimizer
-            }, './checkpoint/checkpoint.pth')
 
     latent_vectors = model.infer(train_dataloader)
     latent_vectors = latent_vectors.detach().cpu().numpy()
